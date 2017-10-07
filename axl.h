@@ -36,9 +36,9 @@ struct xml_namespace_s
    int count;                   // Count of usage (i.e. element or explicit attribute)
    int level;                   // Level of common parent
    xml_t parent;                // Common parent - top level where namespace used
-   int fixed:1;                 // Fixed tag
-   int nsroot:1;                // Root level XML
-   int always:1;                // Include even if seemingly not used
+   unsigned char fixed:1;                 // Fixed tag
+   unsigned char nsroot:1;                // Root level XML
+   unsigned char always:1;                // Include even if seemingly not used
    char *outputtag;
    char uri[];
 };
@@ -64,6 +64,7 @@ struct xml_attribute_s
    xml_t parent;
    xml_attribute_t prev,
      next;
+   unsigned char json_unquoted:1;         // not quoted in json
    xml_namespace_t namespace;
    xml_name_t name;
    xml_content_t content;
@@ -95,7 +96,8 @@ struct xml_s
    xml_root_t tree;
    int line;
    const char *filename;
-   int json_single:1;           // Output in JSON not as an array - i.e. only ever one instance of this object
+   unsigned char json_single:1;           // Output in JSON not as an array - i.e. only ever one instance of this object
+   unsigned char json_unquoted:1;         // content not quoted in json
 };
 
 // Functions
@@ -181,7 +183,7 @@ char *xml_date14 (char *t, time_t v);   // convert time_t to XML date requiring 
 time_t xml_timez (const char *t, int z);        // convert xml time to time_t
 #define	xml_time(t) xml_timez(t,0)      // Normal XML time, assumes local if no time zone
 #define	xml_time_utc(t) xml_timez(t,1)  // Expects time to be UTC even with no Z suffix
-char *xml_baseN (size_t, const unsigned char *, size_t, char *,const char *,unsigned int);
+char *xml_baseN (size_t, const unsigned char *, size_t, char *, const char *, unsigned int);
 #define	xml_base64(len,buf)	xml_base64N(len,buf,((len)+2)/3*4+1,alloca(((len)+2)/3*4+1))
 #define xml_base64N(slen,src,dlen,dst) xml_baseN(slen,src,dlen,dst,BASE64,6)
 #define	xml_base32(len,buf)	xml_base32N(len,buf,((len)+4)/5*8+1,alloca(((len)+4)/5*8+1))
