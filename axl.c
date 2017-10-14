@@ -3180,7 +3180,7 @@ xml_log (int debug, const char *who, const char *what, xml_t tx, xml_t rx)
    }
 }
 
-#ifndef LIB
+#ifdef MAIN
 #define	X	xml_add
 int
 main (int argc, char *argv[])
