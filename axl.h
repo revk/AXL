@@ -50,9 +50,9 @@ struct xml_namespace_s
    int count;                   // Count of usage (i.e. element or explicit attribute)
    int level;                   // Level of common parent
    xml_t parent;                // Common parent - top level where namespace used
-   unsigned char fixed:1;                 // Fixed tag
-   unsigned char nsroot:1;                // Root level XML
-   unsigned char always:1;                // Include even if seemingly not used
+   unsigned char fixed:1;       // Fixed tag
+   unsigned char nsroot:1;      // Root level XML
+   unsigned char always:1;      // Include even if seemingly not used
    char *outputtag;
    char uri[];
 };
@@ -78,7 +78,7 @@ struct xml_attribute_s
    xml_t parent;
    xml_attribute_t prev,
      next;
-   unsigned char json_unquoted:1;         // not quoted in json
+   unsigned char json_unquoted:1;       // not quoted in json
    xml_namespace_t namespace;
    xml_name_t name;
    xml_content_t content;
@@ -110,8 +110,8 @@ struct xml_s
    xml_root_t tree;
    int line;
    const char *filename;
-   unsigned char json_single:1;           // Output in JSON not as an array - i.e. only ever one instance of this object
-   unsigned char json_unquoted:1;         // content not quoted in json
+   unsigned char json_single:1; // Output in JSON not as an array - i.e. only ever one instance of this object
+   unsigned char json_unquoted:1;       // content not quoted in json
 };
 
 // Functions
@@ -136,11 +136,13 @@ xml_t xml_element_next (xml_t parent, xml_t prev);
 xml_t xml_element_next_by_name_ns (xml_t parent, xml_t prev, xml_namespace_t namespace, const char *name);
 xml_attribute_t xml_attribute_next (xml_t e, xml_attribute_t prev);
 
+xml_t xml_element_add_ns_after_l (xml_t parent, xml_namespace_t namespace, int namel, const char *name, xml_t prev);
 xml_t xml_element_add_ns_after (xml_t parent, xml_namespace_t namespace, const char *name, xml_t prev);
 #define		xml_element_add(p,n)	xml_element_add_ns_after(p,NULL,n,NULL)
 #define		xml_element_add_ns(p,ns,n)	xml_element_add_ns_after(p,ns,n,NULL)
 xml_t xml_element_attach (xml_t parent, xml_t element);
 xml_attribute_t xml_attribute_printf_ns (xml_t e, xml_namespace_t namespace, const char *name, const char *format, ...);
+xml_attribute_t xml_attribute_set_ns_l (xml_t e, xml_namespace_t namespace,int namel, const char *name, int contentl,const char *content);
 xml_attribute_t xml_attribute_set_ns (xml_t e, xml_namespace_t namespace, const char *name, const char *content);
 #define		xml_attribute_set(e,n,c)	xml_attribute_set_ns(e,NULL,n,c)
 void xml_attribute_delete (xml_attribute_t a);
@@ -149,11 +151,13 @@ xml_t xml_element_delete (xml_t e);
 void xml_element_explode (xml_t e);
 void xml_element_set_name (xml_t e, const char *name);
 void xml_element_set_namespace (xml_t e, xml_namespace_t ns);
+void xml_element_set_content_l (xml_t e,int contentl, const char *content);
 void xml_element_set_content (xml_t e, const char *content);
 void xml_element_printf_content (xml_t e, const char *format, ...);
 xml_t xml_tree_new (const char *name);  // Create new tree with dummy root (optionalal naming root)
 xml_t xml_tree_add_root_ns (xml_t tree, xml_namespace_t namespace, const char *name);   // Sets root name and namespace and returns root
 #define		xml_tree_add_root(t,n)	xml_tree_add_root_ns(t,NULL,n)
+xml_namespace_t xml_namespace_l (xml_t tree, int tagl, const char *tag, int namespacel, const char *namespace);
 xml_namespace_t xml_namespace (xml_t t, const char *tag, const char *namespace);        // tag prefix *(always) ^(root) :(not-fixed)
 xml_t xml_tree_delete (xml_t t);        // Returns null
 void xml_element_write (FILE * fp, xml_t e, int headers, int pack);     // Write XML
@@ -161,6 +165,7 @@ void xml_element_write_json (FILE * fp, xml_t e);       // Write XML as JSON
 xml_t xml_element_compress (xml_t e);   // Reduce single text only sub objects to attributes of parent and returns passed argument for use in line
 #define xml_tree_compress(t) xml_element_compress(t)
 xml_pi_t xml_pi_next (xml_t tree, xml_pi_t prev);
+xml_pi_t xml_pi_add_l (xml_t tree, int namel, const char *name, int contentl, const char *content);     // start name with ! to send things like !DOCTYPE
 xml_pi_t xml_pi_add (xml_t tree, const char *name, const char *content);        // start name with ! to send things like !DOCTYPE
 void xml_quoted (FILE *, const char *);
 
