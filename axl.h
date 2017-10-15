@@ -180,7 +180,7 @@ xml_t xml_tree_read_file (const char *filename);
 xml_t xml_tree_read_file_json (const char *filename);
 xml_t xml_curl (void *curl, const char *soapaction, xml_t, const char *url, ...);       // Post XML (if tree supplied) or Get a URL and collect response. curl is expected to be initialised and can be set for posting data using curl_formadd and called with no input. URL can be vsprint. Response can be XML or JSON
 typedef void xml_callback_t (xml_t);    // call back
-void xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t input, const char *url, ...); // Parse sequence of responses via callback
+//void xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t input, const char *url, ...); // Parse sequence of responses via callback
 void xml_log (int debug, const char *who, const char *what, xml_t tx, xml_t rx);
 
 // General conversions common to xml
