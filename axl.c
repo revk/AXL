@@ -32,6 +32,8 @@
 // TODO change to allow XML comments, and interleaved text elements
 // TODO document that carefully
 // TODO C14N formatting
+// TODO Clear logic for element with blank name being an intermix text element maybe? parse and write (what of json?)
+// TODO Clear logic for element name "!--" being comment
 
 /* Suggested vim command to fix from last version :-
 
@@ -269,7 +271,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
             }
             character++;
 #ifdef	CPP
-#error CPP not coded - TODO
+#error CPP not coded
 #endif
          }
          // Move on
@@ -883,7 +885,7 @@ xml_attribute_set_ns_l (xml_t e, xml_namespace_t namespace, int namel, const cha
 xml_attribute_t
 xml_attribute_set_ns (xml_t e, xml_namespace_t namespace, const char *name, const char *content)
 {
-   return xml_attribute_set_ns_l (e, namespace, strlen (name), name, strlen (content), content);
+   return xml_attribute_set_ns_l (e, namespace, strlen (name ? : ""), name, strlen (content ? : ""), content);
 }
 
 xml_t
@@ -1254,7 +1256,7 @@ xml_element_attach (xml_t pe, xml_t e)
    // attach to new tree
    if (!pe->parent && !pe->name && !pe->prev && !pe->next && !pe->first_child && !pe->first_attribute)
    {                            // pe is a lone null root
-      errx (1, "Attaching at root, TODO (xml_element_attach)");
+      errx (1, "Attaching at root");
       // Ideally pe needs to stay valid as the root but become the new element
    } else
    {                            // attach as new child under pe
@@ -2234,7 +2236,7 @@ json_parse_object (xml_t e, const char *json)
          json++;
       if (*json == '{')
       {                         // object
-         xml_t o = xml_element_add (e, name);
+         xml_t o = xml_element_add (e, *name ? name : e->name);
          if (!inarray)
             o->json_single = 1;
          json = json_parse_object (o, json);
@@ -2909,7 +2911,7 @@ xml_element_printf_content (xml_t e, const char *format, ...)
 // If object exists then not created again unless + prefix used to force new object
 // Object .. means up a level
 // Returns final element
-// TODO maybe allow [n] suffix for objects some time...
+// maybe allow [n] suffix for objects some time...
 xml_t
 xml_add (xml_t e, const char *path, const char *value)
 {
@@ -3544,7 +3546,7 @@ xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t inp
    va_end (ap);
    curl_easy_setopt (curl, CURLOPT_URL, fullurl);
 #ifdef	EXPAT
-   curl_easy_setopt (curl, CURLOPT_WRITEDATA, &parser); // TODO
+   curl_easy_setopt (curl, CURLOPT_WRITEDATA, &parser);
    curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
 #else
    errx (1, "Change to curl in to memory and parse");
@@ -3580,7 +3582,7 @@ xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t inp
    XML_ParserFree (xml_parser);
 #else
    errx (1, "Finish curl");
-#error TODO
+#error CURL CB not donw
 #endif
    // Put back to GET as default
    curl_easy_setopt (curl, CURLOPT_HTTPHEADER, NULL);
