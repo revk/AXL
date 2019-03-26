@@ -157,7 +157,7 @@ void xml_element_printf_content (xml_t e, const char *format, ...);
 xml_t xml_tree_new (const char *name);  // Create new tree with dummy root (optionalal naming root)
 xml_t xml_tree_add_root_ns (xml_t tree, xml_namespace_t namespace, const char *name);   // Sets root name and namespace and returns root
 #define		xml_tree_add_root(t,n)	xml_tree_add_root_ns(t,NULL,n)
-xml_namespace_t xml_namespace_l (xml_t tree, int tagl, const char *tag, int namespacel, const char *namespace);
+xml_namespace_t xml_namespace_l (xml_t tree, int tagl, const char *tag, unsigned int namespacel, const char *namespace);
 xml_namespace_t xml_namespace (xml_t t, const char *tag, const char *namespace);        // tag prefix *(always) ^(root) :(not-fixed)
 xml_t xml_tree_delete (xml_t t);        // Returns null
 void xml_element_write (FILE * fp, xml_t e, int headers, int pack);     // Write XML

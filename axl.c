@@ -114,6 +114,8 @@ strcmp_l (int al, const char *a, int bl, const char *b)
     return -1;
   if (!b || bl > al)
     return 1;
+  if (!al)
+    return 0;
   return memcmp (a, b, al);
 }
 
@@ -180,7 +182,7 @@ typedef struct xml_parser_s
 #endif
 
 #ifndef	EXPAT
-typedef void xml_error_func (const char *filename, int line, int character, const char *error);
+typedef void xml_error_func (const char *filename, int line, int character, const char *error, const unsigned char *posn);
 
 static xml_t
 xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail)
@@ -203,6 +205,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
     nss[nssp].namespace = xml_namespace_l (root, tagl, (const char *) tag, namespacel, (const char *) namespace);
     nssp++;
   }
+  ns_stack (3, (unsigned char *) "xml", 36, "http://www.w3.org/XML/1998/namespace");
   xml_namespace_t ns_find (int tagl, const unsigned char *tag)
   {				// Find namespace from stack
     int p = nssp;
@@ -211,7 +214,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
 	return nss[p].namespace;
     return NULL;
   }
-  const unsigned char *p = xml;
+  const unsigned char *p = xml, *posn = xml;
   int line = 0, character = 0;
   const char *er = NULL;	// Error
   if (!p)
@@ -221,17 +224,16 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
     };
   unsigned int utf8 (void)
   {				// return next letter as UTF8
-    if (er)
-      return 0;
     if (p[0] < 0x80)
       return p[0];
-    if (p[0] >= 0xC2 && p[0] < 0xDF && p[1] >= 0x80 && p[1] < 0xC0)
+    if (p[0] >= 0xC2 && p[0] <= 0xDF && p[1] >= 0x80 && p[1] < 0xC0)
       return ((p[0] & 0x1F) << 6) + (p[1] & 0x3F);
-    if (p[0] >= 0xE0 && p[0] < 0xEF && p[1] >= 0x80 && p[1] < 0xC0 && p[2] >= 0x80 && p[2] < 0xC0)
-      return ((p[0] & 0x1F) << 12) + ((p[1] & 0x3F) << 6) + (p[2] & 0x3F);
-    if (p[0] >= 0xF0 && p[0] < 0xF7 && p[1] >= 0x80 && p[1] < 0xC0 && p[2] >= 0x80 && p[2] < 0xC0 && p[3] >= 0x80 && p[3] < 0xC)
-      return ((p[0] & 0x1F) << 18) + ((p[1] & 0x3F) << 12) + ((p[2] & 0x3F) << 6) + (p[3] & 0x3F);
-    er = "Bad UTF-8";
+    if (p[0] >= 0xE0 && p[0] <= 0xEF && p[1] >= 0x80 && p[1] < 0xC0 && p[2] >= 0x80 && p[2] < 0xC0)
+      return ((p[0] & 0xF) << 12) + ((p[1] & 0x3F) << 6) + (p[2] & 0x3F);
+    if (p[0] >= 0xF0 && p[0] <= 0xF7 && p[1] >= 0x80 && p[1] < 0xC0 && p[2] >= 0x80 && p[2] < 0xC0 && p[3] >= 0x80 && p[3] < 0xC0)
+      return ((p[0] & 0x7) << 18) + ((p[1] & 0x3F) << 12) + ((p[2] & 0x3F) << 6) + (p[3] & 0x3F);
+    if (!er)
+      er = "Bad UTF-8 read";
     return 0;
   }
   void write_utf8 (FILE * o, unsigned int c)
@@ -249,7 +251,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
 	fputc (0x80 + ((c >> 6) & 0x3F), o);
 	fputc (0x80 + (c & 0x3F), o);
       }
-    else if (c < 0x110000)
+    else if (c < 0x200000)
       {
 	fputc (0xF0 + (c >> 18), o);
 	fputc (0x80 + ((c >> 12) & 0x3F), o);
@@ -257,14 +259,15 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
 	fputc (0x80 + (c & 0x3F), o);
       }
     else
-      er = "Bad UTF8";
+      er = "Bad UTF-8 write";
   }
   void next (int n)
-  {				// Move on p, but account for line, character, and so on
+  {				// Move on p, but account for line, character, and so on - keeps going until *p==0 even after error but does not count line/char/posn once er set
     while (n-- && *p)
       {
 	if (!er)
-	  {			// Advance position...
+	  {			// Record position...
+	    posn = p;
 	    if (*p == '\n')
 	      {
 		line++;
@@ -272,29 +275,30 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
 	      }
 	    character++;
 #ifdef	CPP
+	    // Handle CPP lines as special cases
 #error CPP not coded
 #endif
 	  }
 	// Move on
-	if (*p >= 0x80 && *p < 0xC0)
-	  {			// UTF8
-	    er = "Bad UTF-8";
+	if (*p < 0x80)
+	  p++;			// ASCII
+	else if (*p < 0xC0)
+	  {			// UTF8 continuation (bad)
+	    if (!er)
+	      er = "Bad UTF-8";
 	    p++;
 	  }
-	else if (*p >= 0xC0)
-	  {
-	    utf8 ();		// Check valid
-	    if (*p >= 0xF0)
-	      p += 4;
-	    else if (*p >= 0xE0)
-	      p += 3;
-	    else if (*p >= 0xC0)
-	      p += 2;
-	    else
-	      p++;		// ?
-	  }
 	else
-	  p++;
+	  {			// Normal UTF8
+	    if (!utf8 ())
+	      p++;		// Bad UTF8, cannot be 0 so cannot be valid
+	    else if (*p >= 0xF0)
+	      p += 4;		// UTF-8 sizes
+	    else if (*p >= 0xE0)
+	      p += 3;		// UTF-8 sizes
+	    else
+	      p += 2;		// UTF-8 sizes
+	  }
       }
   }
   inline int iss (unsigned char c)
@@ -649,6 +653,8 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
 	return 0;
       }
     while (parse_attribute (n));
+    if (er)
+      return 0;
     // Work out element namespace
     int nsl = 0;
     if (name > stag)
@@ -672,7 +678,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
     char *content = NULL;
     size_t contentl = 0;
     FILE *o = open_memstream (&content, &contentl);
-    while (*p != '<' || p[1] != '/')
+    while (*p && (*p != '<' || p[1] != '/') && !er)
       {				// content
 	while (*p && *p != '<' && *p != '&')
 	  parse_chardata (o);
@@ -736,7 +742,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
       xml_tree_delete (root);
       root = NULL;
       if (fail)
-	fail (filename, line, character, er);
+	fail (filename, line, character, er, posn);
     }
   if (nss)
     free (nss);
@@ -844,7 +850,7 @@ xml_element_add_ns_after_l (xml_t parent, xml_namespace_t namespace, int namel, 
 xml_t
 xml_element_add_ns_after (xml_t parent, xml_namespace_t namespace, const char *name, xml_t prev)
 {
-  return xml_element_add_ns_after_l (parent, namespace, strlen (name), name, prev);
+  return xml_element_add_ns_after_l (parent, namespace, strlen (name ? : ""), name, prev);
 }
 
 xml_attribute_t
@@ -856,7 +862,7 @@ xml_attribute_set_ns_l (xml_t e, xml_namespace_t namespace, int namel, const cha
     errx (1, "Null element xml_attribute_set_ns)");
   // see if exists
   xml_attribute_t a = e->first_attribute;
-  while (a && ((a->namespace != namespace && (namespace || a->namespace != e->namespace)) || (name && strcmp_l (strlen (a->name), a->name, namel, name))))
+  while (a && ((a->namespace != namespace && (namespace || a->namespace != e->namespace)) || (name && strcmp_l (strlen (a->name ? : ""), a->name, namel, name))))
     a = a->next;
   if (!content)
     {
@@ -1026,7 +1032,7 @@ xml_tree_add_root_ns (xml_t e, xml_namespace_t namespace, const char *name)
 }
 
 xml_namespace_t
-xml_namespace_l (xml_t tree, int tagl, const char *tag, int namespacel, const char *namespace)
+xml_namespace_l (xml_t tree, int tagl, const char *tag, unsigned int namespacel, const char *namespace)
 {
   xml_root_t t = tree->tree;
   if (!namespace)
@@ -1034,13 +1040,13 @@ xml_namespace_l (xml_t tree, int tagl, const char *tag, int namespacel, const ch
   if (!t)
     errx (1, "Null tree (xml_namespace)");
   xml_namespacelist_t l = t->namespacelist;
-  while (l && strcmp (l->namespace->uri, namespace))
+  while (l && (strlen (l->namespace->uri) != namespacel || strncmp (l->namespace->uri, namespace, namespacel)))
     l = l->next;
   if (!l)
     {
       l = xml_alloc (sizeof (*l));
       l->namespace = xml_alloc (sizeof (*l->namespace) + namespacel + 1);
-      strcpy (l->namespace->uri, namespace);
+      strncpy (l->namespace->uri, namespace, namespacel);
       l->namespace->uri[namespacel] = 0;
       if (t->namespacelist)
 	t->namespacelist_end->next = l;
@@ -1084,7 +1090,7 @@ xml_namespace (xml_t tree, const char *tag, const char *namespace)
 {
   if (!namespace)
     return NULL;
-  return xml_namespace_l (tree, strlen (tag ? : ""), tag, strlen (namespace), namespace);
+  return xml_namespace_l (tree, strlen (tag ? : ""), tag, strlen (namespace ? : ""), namespace);
 }
 
 void
@@ -1185,14 +1191,18 @@ update_treerefs (xml_t e, xml_root_t t)
 }
 
 xml_t
-xml_element_attach (xml_t pe, xml_t e)
+xml_element_attach_after (xml_t pe, xml_t prev, xml_t e)
 {
   // Detaches e from its tree, and attaches it under pe
-  // if e is root element, thencopies e first and clears e as empty root, leaving e still valid as tree pointer and safe to delete
+  // if e is root element, then copies e first and clears e as empty root, leaving e still valid as tree pointer and safe to delete
   // Returns the attached element, usually the same as e, unless it was root
   // At present, attaching under empty root barfs, but in future may replace it
+  if (!pe && prev)
+    pe = prev->parent;
   if (!pe || !e)
     errx (1, "Null element (xml_element_attach)");
+  if (prev && prev != pe && prev->parent != pe)
+    errx (1, "Prev is not child of parent (xml_element_attach)");
   xml_root_t pt = pe->tree;
   xml_root_t t = e->tree;
   if (pt == t && !e->parent)
@@ -1268,12 +1278,37 @@ xml_element_attach (xml_t pe, xml_t e)
     }
   else
     {				// attach as new child under pe
-      if (pe->first_child)
-	pe->last_child->next = e;
+      if (prev)
+	{			// Link in after specified previous element
+	  if (prev == pe)
+	    {			// Insert at start
+	      if (pe->first_child)
+		pe->first_child->prev = e;
+	      else
+		pe->last_child = e;
+	      e->next = pe->first_child;
+	      pe->first_child = e;
+	    }
+	  else
+	    {			// Append
+	      e->prev = prev;
+	      e->next = prev->next;
+	      prev->next = e;
+	      if (e->next)
+		e->next->prev = e;
+	      else
+		pe->last_child = e;
+	    }
+	}
       else
-	pe->first_child = e;
-      e->prev = pe->last_child;
-      pe->last_child = e;
+	{			// Attach at end
+	  if (pe->first_child)
+	    pe->last_child->next = e;
+	  else
+	    pe->first_child = e;
+	  e->prev = pe->last_child;
+	  pe->last_child = e;
+	}
     }
   e->parent = pe;
   return e;
@@ -1700,44 +1735,46 @@ xml_element_write (FILE * fp, xml_t e, int headers, int pack)
   int nsn = 0;
   xml_namespacelist_t a, b;
   scan_namespace (t, e);
+  sort_namespace (t);
   for (a = t->namespacelist; a; a = a->next)
-    if (!a->namespace->fixed)
-      {
-	if (a->tag)
-	  {			// ensure no duplicates
-	    for (b = t->namespacelist; b && b != a && strcmp (a->tag ? : "", b->tag ? : ""); b = b->next);
-	    if (b && b != a)
-	      {
-		xml_free (a->tag);
-		a->tag = 0;
-	      }
-	  }
-	if (!a->tag || !*a->tag)
-	  {			// make one up
-	    char temp[10];
-	    while (1)
-	      {
-		const char c[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-		int n = nsn++;
-		char *p = temp;
-		*p++ = c[n % 52];
-		n /= 52;
-		while (n)
-		  {
-		    *p++ = c[n % 62];
-		    n /= 62;
-		  }
-		*p = 0;
-		for (b = t->namespacelist; b && b != a && strcmp (temp, (b->tag ? : "")); b = b->next);
-		if (!b || b == a)
-		  break;
-	      }
-	    a->tag = xml_dup (temp);
-	  }
-      }
+    {
+      if (!a->namespace->fixed)
+	{
+	  if (a->tag)
+	    {			// ensure no duplicates
+	      for (b = t->namespacelist; b && b != a && strcmp (a->tag ? : "", b->tag ? : ""); b = b->next);
+	      if (b && b != a)
+		{
+		  xml_free (a->tag);
+		  a->tag = 0;
+		}
+	    }
+	  if (!a->tag || !*a->tag)
+	    {			// make one up
+	      char temp[10];
+	      while (1)
+		{
+		  const char c[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+		  int n = nsn++;
+		  char *p = temp;
+		  *p++ = c[n % 52];
+		  n /= 52;
+		  while (n)
+		    {
+		      *p++ = c[n % 62];
+		      n /= 62;
+		    }
+		  *p = 0;
+		  for (b = t->namespacelist; b && b != a && strcmp (temp, (b->tag ? : "")); b = b->next);
+		  if (!b || b == a)
+		    break;
+		}
+	      a->tag = xml_dup (temp);
+	    }
+	}
+    }
   for (a = t->namespacelist; a; a = a->next)
     a->namespace->outputtag = a->tag;
-  sort_namespace (t);
   write_element (fp, e, pack < 0 ? -2 : pack ? -1 : 0, NULL);
 }
 
@@ -2174,6 +2211,8 @@ json_parse_string (const char *json, char **name)
   }
   if (*json == '"')
     {				// properly formatted
+      addc (0);
+      l--;			// Ensure empty string allocated
       json++;
       while (*json && *json != '"')
 	{
@@ -2251,6 +2290,8 @@ json_parse_object (xml_t e, const char *json)
 	while (*json && *json != ']')
 	  {
 	    addvalue (1, 1);
+	    if (!json)
+	      return;
 	    if (*json == ',')
 	      json++;
 	  }
@@ -2266,14 +2307,14 @@ json_parse_object (xml_t e, const char *json)
 	  {
 	    if (a)
 	      {
-		xml_t o = xml_element_add (e, name);
+		xml_t o = xml_element_add (e, *name ? name : e->name);
 		xml_element_set_content (o, value);
 		if (q != '"')
 		  o->json_unquoted = 1;
 	      }
 	    else
 	      {
-		xml_attribute_t a = xml_attribute_set (e, name, value);
+		xml_attribute_t a = xml_attribute_set (e, *name ? name : e->name, value);
 		if (q != '"')
 		  a->json_unquoted = 1;
 	      }
@@ -2308,6 +2349,8 @@ json_parse_object (xml_t e, const char *json)
       json++;
       addvalue (0, 0);
       free (name);
+      if (!json)
+	return json;
       while (isspace (*json))
 	json++;
       if (*json == ',')
@@ -2336,7 +2379,11 @@ xml_tree_parse_json (const char *json, const char *rootname)
       if (*json != '"')
 	t->json_unquoted = 1;
       json = json_parse_string (json, &value);
-      xml_element_set_content (t, value);
+      if (value)
+	{
+	  xml_element_set_content (t, value);
+	  free (value);
+	}
       while (isspace (*json))
 	json++;
       if (*json || !value)
@@ -2376,9 +2423,9 @@ xml_tree_parse (const char *xml)
 xml_t
 xml_tree_parse (const char *xml)
 {				// parse an in-memory string, null terminated
-  void er (const char *filename, int line, int character, const char *error)
+  void er (const char *filename, int line, int character, const char *error, const unsigned char *posn)
   {
-    warnx ("XML parse error in %s line %d:%d (%s)", filename ? : "stdin", line, character, error);
+    warnx ("XML parse error in %s line %d:%d (%s) %s", filename ? : "stdin", line, character, error, posn);
   }
   return xml_parse (NULL, (const unsigned char *) xml, er);
 }
@@ -2472,9 +2519,11 @@ xml_tree_read_f (FILE * i, const char *file)
     fwrite (buf, l, 1, o);
   fputc (0, o);
   fclose (o);
-  void er (const char *filename, int line, int character, const char *error)
+  void er (const char *filename, int line, int character, const char *error, const unsigned char *posn)
   {
     warnx ("XML parse error in %s line %d:%d (%s)", filename ? : "stdin", line, character, error);
+    if (posn)
+      warnx ("%02X %02X %02X %02X %02X", posn[0], posn[1], posn[2], posn[3], posn[4]);
   }
   xml_t e = xml_parse (file, (const unsigned char *) xml, &er);
   free (xml);
@@ -2496,7 +2545,7 @@ xml_tree_read_json (FILE * fp, const char *rootname)
 	  a = p + l + 1;
 	  mem = realloc (mem, a);
 	}
-      memcpy (mem + p, buf, l);
+      memmove (mem + p, buf, l);
       p += l;
     }
   if (!a)
@@ -2579,7 +2628,7 @@ xml_pi_add (xml_t t, const char *name, const char *content)
 {
   if (!name || !content)
     return NULL;
-  return xml_pi_add_l (t, strlen (name), name, strlen (content), content);
+  return xml_pi_add_l (t, strlen (name ? : ""), name, strlen (content ? : ""), content);
 }
 
 void
@@ -3273,11 +3322,11 @@ xml_date14 (char *t, time_t v)	// convert time_t to XML date requiring 14 charac
   struct tm *w = localtime (&v);
   strftime (t, 14, "%eth %b %Y", w);
   if (w->tm_mday == 1 || w->tm_mday == 21 || w->tm_mday == 31)
-    memcpy (t + 2, "st", 2);
+    memmove (t + 2, "st", 2);
   else if (w->tm_mday == 2 || w->tm_mday == 22)
-    memcpy (t + 2, "nd", 2);
+    memmove (t + 2, "nd", 2);
   else if (w->tm_mday == 3 || w->tm_mday == 23)
-    memcpy (t + 2, "rd", 2);
+    memmove (t + 2, "rd", 2);
   return t;
 }
 
@@ -3451,6 +3500,7 @@ xml_curl (void *curlv, const char *soapaction, xml_t input, const char *url, ...
 	  headers = curl_slist_append (headers, sa);
 	  free (sa);
 	}
+      headers = curl_slist_append (headers, "Expect:");
       curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
       curl_easy_setopt (curl, CURLOPT_POST, 1L);
       FILE *i = open_memstream (&request, &requestlen);
@@ -3562,6 +3612,7 @@ xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t inp
 	  headers = curl_slist_append (headers, sa);
 	  free (sa);
 	}
+      headers = curl_slist_append (headers, "Expect:");
       curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
       curl_easy_setopt (curl, CURLOPT_POST, 1L);
       FILE *i = open_memstream (&request, &requestlen);
@@ -3613,13 +3664,21 @@ xml_log (int debug, const char *who, const char *what, xml_t tx, xml_t rx)
   }
   if (!tx && !rx)
     return;
+  char *norm (char *x)
+  {
+    char *p;
+    for (p = x; *p; p++)
+      if (!isalnum (*p))
+	*p = '_';
+    return x;
+  }
   umask (0);
   char path[1000] = "", *p = path, *q;
   struct timeval tv;
   struct timezone tz;
   gettimeofday (&tv, &tz);
   p += strftime (path, sizeof (path) - 1, "/var/log/xml/%Y/%m/%d/%H%M%S", gmtime (&tv.tv_sec));
-  p += sprintf (p, "%06lu-%s-%s", tv.tv_usec, who, what);
+  p += sprintf (p, "%06lu-%s-%s", tv.tv_usec, norm (strdupa (who ? : "-")), norm (strdupa (what ? : "-")));
   for (q = path + 12; q; q = strchr (q + 1, '/'))
     {
       *q = 0;
@@ -3645,6 +3704,7 @@ xml_log (int debug, const char *who, const char *what, xml_t tx, xml_t rx)
       if (!o)
 	err (1, "Cannot make log file %s", path);
       xml_write (o, rx);
+      fclose (o);
       if (debug)
 	log (rx);
     }
@@ -3655,7 +3715,7 @@ xml_log (int debug, const char *who, const char *what, xml_t tx, xml_t rx)
 int
 main (int argc, char *argv[])
 {
-  int a, json = 0, jsonout = 0, pretty = 0;
+  int a, json = 0, jsonout = 0, pretty = 0, tidy = 0;
   for (a = 1; a < argc; a++)
     {
       if (!strcmp (argv[a], "-j") || !strcmp (argv[a], "--json"))
@@ -3671,6 +3731,11 @@ main (int argc, char *argv[])
       if (!strcmp (argv[a], "-f") || !strcmp (argv[a], "--pretty"))
 	{
 	  pretty = 1;
+	  continue;
+	}
+      if (!strcmp (argv[a], "-t") || !strcmp (argv[a], "--tidy"))
+	{
+	  tidy = 1;
 	  continue;
 	}
       xml_t t = NULL;
@@ -3711,7 +3776,7 @@ main (int argc, char *argv[])
 	  if (jsonout)
 	    xml_element_write_json (stdout, t);
 	  else
-	    xml_element_write (stdout, t, 1, pretty ? 0 : 1);
+	    xml_element_write (stdout, t, 1, tidy ? -1 : pretty ? 0 : 1);
 	  xml_tree_delete (t);
 	}
     }
