@@ -21,9 +21,11 @@
        along with this program.  If not, see <http://www.gnu.org/licenses/>.
      */
 
+#ifndef AXL_H
+#define	AXL_H
 // Parser, object management and output
 
-// Requires -lexpat -lcurl
+// Requires -lexpat -lcurl if not axllight
 
 // Types
 
@@ -127,6 +129,7 @@ struct xml_s
 #define	xml_attribute_parent(x)		((x)->parent)
 #define	xml_pi_name(x)			((x)->name)
 #define	xml_pi_content(x)		((x)->content)
+#define	xml_tree_root(x)		((x)->tree->root)
 xml_t xml_element_by_name_ns (xml_t e, xml_namespace_t namespace, const char *name);
 #define		xml_element_by_name(e,n)	xml_element_by_name_ns(e,NULL,n)
 xml_attribute_t xml_attribute_by_name_ns (xml_t e, xml_namespace_t namespace, const char *name);
@@ -140,7 +143,10 @@ xml_t xml_element_add_ns_after_l (xml_t parent, xml_namespace_t namespace, int n
 xml_t xml_element_add_ns_after (xml_t parent, xml_namespace_t namespace, const char *name, xml_t prev);
 #define		xml_element_add(p,n)	xml_element_add_ns_after(p,NULL,n,NULL)
 #define		xml_element_add_ns(p,ns,n)	xml_element_add_ns_after(p,ns,n,NULL)
-xml_t xml_element_attach (xml_t parent, xml_t element);
+xml_t xml_element_attach_after (xml_t parent,xml_t prev, xml_t element);
+#define	xml_element_insert(parent,e) xml_element_attach_after(parent,parent,e) 	// At start under parent
+#define	xml_element_attach(parent,e) xml_element_attach_after(parent,NULL,e)	// At end under parent
+#define	xml_element_append(prev,e) xml_element_attach_after(NULL,prev,e)	// After previous entry
 xml_attribute_t xml_attribute_printf_ns (xml_t e, xml_namespace_t namespace, const char *name, const char *format, ...);
 xml_attribute_t xml_attribute_set_ns_l (xml_t e, xml_namespace_t namespace,int namel, const char *name, int contentl,const char *content);
 xml_attribute_t xml_attribute_set_ns (xml_t e, xml_namespace_t namespace, const char *name, const char *content);
@@ -180,7 +186,7 @@ xml_t xml_tree_read_file (const char *filename);
 xml_t xml_tree_read_file_json (const char *filename);
 xml_t xml_curl (void *curl, const char *soapaction, xml_t, const char *url, ...);       // Post XML (if tree supplied) or Get a URL and collect response. curl is expected to be initialised and can be set for posting data using curl_formadd and called with no input. URL can be vsprint. Response can be XML or JSON
 typedef void xml_callback_t (xml_t);    // call back
-//void xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t input, const char *url, ...); // Parse sequence of responses via callback
+void xml_curl_cb (void *curlv, xml_callback_t * cb, const char *soapaction, xml_t input, const char *url, ...); // Parse sequence of responses via callback
 void xml_log (int debug, const char *who, const char *what, xml_t tx, xml_t rx);
 
 // General conversions common to xml
@@ -237,3 +243,5 @@ xml_t xml_addf (xml_t e, const char *path, const char *fmt, ...);
 // Similar generic path based functions
 xml_t xml_find (xml_t e, const char *path);     // return an element using a path
 char *xml_get (xml_t, const char *path);        // return content of element or attribute using a path (attribute as final part)
+
+#endif	// AXL_H
