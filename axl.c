@@ -85,7 +85,7 @@ const char BASE16[] = "0123456789ABCDEF";
 
 const char empty[1] = "";
 
-static struct xml_namespace_s nullns = { };
+static struct xml_namespace_s nullns = {0};
 
 static void *
 xml_alloc (size_t s)
