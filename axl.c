@@ -234,9 +234,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
          return ((p[0] & 0xF) << 12) + ((p[1] & 0x3F) << 6) + (p[2] & 0x3F);
       if (p[0] >= 0xF0 && p[0] <= 0xF7 && p[1] >= 0x80 && p[1] < 0xC0 && p[2] >= 0x80 && p[2] < 0xC0 && p[3] >= 0x80 && p[3] < 0xC0)
          return ((p[0] & 0x7) << 18) + ((p[1] & 0x3F) << 12) + ((p[2] & 0x3F) << 6) + (p[3] & 0x3F);
-      if (!er)
-         er = "Bad UTF-8 read";
-      return 0;
+      return 0;                 // Bad
    }
    void write_utf8 (FILE * o, unsigned int c)
    {
@@ -1347,9 +1345,17 @@ xml_quoted (FILE * fp, const char *t)
          fputc (*t++, fp);
          continue;
       }
+      if (v >= 0x80)
+      {                         // Not valid UTF-8
+         fputc (0xEF, fp);      // REPLACEMENT CHARACTER
+         fputc (0xBF, fp);
+         fputc (0xBD, fp);
+         continue;
+      }
+      // TODO looks like I expect v to be unicode
       if (v == 9 || v == 10 || v == 13 || (v >= 0x20 && v <= 0xD7FF) || (v >= 0xE000 && v <= 0xFFFD)
           || (v >= 0x10000 && v <= 0x10FFFF))
-      {                         // XML 1.0 codce points
+      {                         // XML 1.0 code points
          if (v == '"')
             fprintf (fp, "&quot;");
          else if (v == '&')
@@ -1395,6 +1401,14 @@ write_content (FILE * fp, const char *t)
          fputc (*t++, fp);
          continue;
       }
+      if (v >= 0x80)
+      {                         // Not valid UTF-8
+         fputc (0xEF, fp);      // REPLACEMENT CHARACTER
+         fputc (0xBF, fp);
+         fputc (0xBD, fp);
+         continue;
+      }
+      // TODO looks like I expect v to be unicode
       if (v == 9 || v == 10 || v == 13 || (v >= 0x20 && v <= 0xD7FF) || (v >= 0xE000 && v <= 0xFFFD)
           || (v >= 0x10000 && v <= 0x10FFFF))
       {                         // XML 1.0 code points
@@ -3387,9 +3401,9 @@ xml_timez (const char *t, int z)        // convert xml time to time_t
     tm_year: Y - 1900, tm_mon: M - 1, tm_mday: D, tm_hour: h, tm_min: m, tm_sec:s
    };
    if (*t == 'Z' || z)
-      return timegm (&tm);
+      return timegm (&tm);      // UTC
    tm.tm_isdst = -1;            // work it out
-   return mktime (&tm);
+   return mktime (&tm);         // Local time
 }
 
 size_t
