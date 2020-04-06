@@ -234,7 +234,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
          return ((p[0] & 0xF) << 12) + ((p[1] & 0x3F) << 6) + (p[2] & 0x3F);
       if (p[0] >= 0xF0 && p[0] <= 0xF7 && p[1] >= 0x80 && p[1] < 0xC0 && p[2] >= 0x80 && p[2] < 0xC0 && p[3] >= 0x80 && p[3] < 0xC0)
          return ((p[0] & 0x7) << 18) + ((p[1] & 0x3F) << 12) + ((p[2] & 0x3F) << 6) + (p[3] & 0x3F);
-      return 0;                 // Bad
+      return 0xFFFD;            // Bad
    }
    void write_utf8 (FILE * o, unsigned int c)
    {
@@ -280,11 +280,8 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
          if (*p < 0x80)
             p++;                // ASCII
          else if (*p < 0xC0)
-         {                      // UTF8 continuation (bad)
-            if (!er)
-               er = "Bad UTF-8";
-            p++;
-         } else
+            p++;                // Bad UTF-8
+         else
          {                      // Normal UTF8
             if (!utf8 ())
                p++;             // Bad UTF8, cannot be 0 so cannot be valid
