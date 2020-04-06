@@ -3384,12 +3384,11 @@ xml_timez (const char *t, int z)        // convert xml time to time_t
    if (!Y && !M && !D)
       return 0;
    struct tm tm = {
-    tm_year: Y - 1900, tm_mon: M - 1, tm_mday: D, tm_hour: h, tm_min: m, tm_sec: s, tm_isdst:-1
+    tm_year: Y - 1900, tm_mon: M - 1, tm_mday: D, tm_hour: h, tm_min: m, tm_sec:s
    };
    if (*t == 'Z' || z)
-      tm.tm_isdst = 0;
-   // UTC
-   // utc
+      return timegm (&tm);
+   tm.tm_isdst = -1;            // work it out
    return mktime (&tm);
 }
 
