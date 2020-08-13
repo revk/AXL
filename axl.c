@@ -3276,8 +3276,28 @@ time_t xml_timez(const char *t, int z)  // convert xml time to time_t
    };
    if (*t == 'Z' || z)
       return timegm(&tm);       // UTC
+   if (*t == '+' || *t == '-')
+   {                            // Explicit time zone
+      int Z = 0;
+      char s = *t++;
+      if (isdigit(t[0]) && isdigit(t[1]))
+      {                         // Hours
+         Z = ((t[0] - '0') * 10 + t[1]) * 3600;
+         t += 2;
+         if (*t == ':')
+            t++;
+         if (isdigit(t[0]) && isdigit(t[1]))
+         {                      // Minutes
+            Z += ((t[0] - '0') * 10 + t[1]) * 60;
+            t += 2;
+         }
+         if (s == '-')
+            Z = 0 - Z;
+      }
+      return timegm(&tm) - Z;
+   }
    tm.tm_isdst = -1;            // work it out
-   return timelocal(&tm);          // Local time
+   return timelocal(&tm);       // Local time
 }
 
 size_t xml_based(char *src, char **buf, const char *alphabet, unsigned int bits)
