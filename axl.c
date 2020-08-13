@@ -3277,7 +3277,7 @@ time_t xml_timez(const char *t, int z)  // convert xml time to time_t
    if (*t == 'Z' || z)
       return timegm(&tm);       // UTC
    tm.tm_isdst = -1;            // work it out
-   return mktime(&tm);          // Local time
+   return timelocal(&tm);          // Local time
 }
 
 size_t xml_based(char *src, char **buf, const char *alphabet, unsigned int bits)
