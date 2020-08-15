@@ -2197,7 +2197,7 @@ static const char *json_parse_object(xml_t e, const char *json)
          json++;
       if (*json == '{')
       {                         // object
-         xml_t o = xml_element_add(e, *name ? name : e->name);
+         xml_t o = xml_element_add(e, name && *name ? name : e->name);
          if (!inarray)
             o->json_single = 1;
          json = json_parse_object(o, json);
@@ -2225,13 +2225,13 @@ static const char *json_parse_object(xml_t e, const char *json)
          {
             if (a)
             {
-               xml_t o = xml_element_add(e, *name ? name : e->name);
+               xml_t o = xml_element_add(e, name && *name ? name : e->name);
                xml_element_set_content(o, value);
                if (q != '"')
                   o->json_unquoted = 1;
             } else
             {
-               xml_attribute_t a = xml_attribute_set(e, *name ? name : e->name, value);
+               xml_attribute_t a = xml_attribute_set(e, name && *name ? name : e->name, value);
                if (q != '"')
                   a->json_unquoted = 1;
             }
@@ -2266,6 +2266,7 @@ static const char *json_parse_object(xml_t e, const char *json)
       json++;
       addvalue(0, 0);
       free(name);
+      name = NULL;
       if (!json)
          return json;
       while (isspace(*json))
