@@ -822,8 +822,9 @@ xml_attribute_t xml_attribute_set_ns_l(xml_t e, xml_namespace_t namespace, int n
    }
    if (a)
    {                            // change content
+      xml_content_t new = xml_dup_l(contentl, content);
       xml_free(a->content);
-      a->content = xml_dup_l(contentl, content);
+      a->content = new;
       return a;
    }
    // new attribute
@@ -2822,6 +2823,10 @@ xml_attribute_t xml_attribute_printf_ns(xml_t e, xml_namespace_t namespace, cons
    xml_attribute_t a = e->first_attribute;
    while (a && ((a->namespace != namespace && (namespace || a->namespace != e->namespace)) || (name && strcmp(a->name, name))))
       a = a->next;
+   va_list ap;
+   va_start(ap, format);
+   xml_content_t new = xml_dup(xml_vsprintf(format, ap));
+   va_end(ap);
    if (a)
       xml_free(a->content);
    else
@@ -2839,10 +2844,7 @@ xml_attribute_t xml_attribute_printf_ns(xml_t e, xml_namespace_t namespace, cons
       if (namespace)
          a->namespace = namespace;
    }
-   va_list ap;
-   va_start(ap, format);
-   a->content = xml_dup(xml_vsprintf(format, ap));
-   va_end(ap);
+   a->content = new;
    return a;
 }
 
