@@ -209,11 +209,11 @@ time_t xml_timez (const char *t, int z);        // convert xml time to time_t
 #define	xml_time(t) xml_timez(t,0)      // Normal XML time, assumes local if no time zone
 #define	xml_time_utc(t) xml_timez(t,1)  // Expects time to be UTC even with no Z suffix
 char *xml_baseN (size_t, const unsigned char *, size_t, char *, const char *, unsigned int);
-#define	xml_base64(len,buf)	xml_base64N(len,buf,((len)+2)/3*4+1,alloca(((len)+2)/3*4+1))
+#define	xml_base64(len,buf)	xml_base64N(len,buf,((len)+2)/3*4+3,alloca(((len)+2)/3*4+3))
 #define xml_base64N(slen,src,dlen,dst) xml_baseN(slen,src,dlen,dst,BASE64,6)
-#define	xml_base32(len,buf)	xml_base32N(len,buf,((len)+4)/5*8+1,alloca(((len)+4)/5*8+1))
+#define	xml_base32(len,buf)	xml_base32N(len,buf,((len)+4)/5*8+3,alloca(((len)+4)/5*8+3))
 #define xml_base32N(slen,src,dlen,dst) xml_baseN(slen,src,dlen,dst,BASE32,5)
-#define	xml_base16(len,buf)	xml_base16N(len,buf,(len)*2+1,alloca((len)*2+1))
+#define	xml_base16(len,buf)	xml_base16N(len,buf,(len)*2+3,alloca((len)*2+3))
 #define xml_base16N(slen,src,dlen,dst) xml_baseN(slen,src,dlen,dst,BASE16,4)
 size_t xml_based (char *src, char **buf, const char *alphabet, unsigned int bits);
 #define xml_base64d(src,dst) xml_based(src,dst,BASE64,6)
