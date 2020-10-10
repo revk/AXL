@@ -3303,7 +3303,7 @@ time_t xml_timez(const char *t, int z)  // convert xml time to time_t
    return timelocal(&tm);       // Local time
 }
 
-size_t xml_based(char *src, char **buf, const char *alphabet, unsigned int bits)
+size_t xml_based(const char *src, unsigned char **buf, const char *alphabet, unsigned int bits)
 {                               // Base16/32/64 string to binary
    if (!buf || !src)
       return -1;
@@ -3311,7 +3311,7 @@ size_t xml_based(char *src, char **buf, const char *alphabet, unsigned int bits)
    int b = 0,
        v = 0;
    size_t len = 0;
-   FILE *out = open_memstream(buf, &len);
+   FILE *out = open_memstream((char **) buf, &len);
    while (*src && *src != '=')
    {
       char *q = strchr(alphabet, bits < 6 ? toupper(*src) : *src);
