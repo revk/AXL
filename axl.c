@@ -888,6 +888,7 @@ xml_t xml_element_delete(xml_t e)
 xml_t xml_element_duplicate(xml_t e)
 {
    void copy(xml_t x, xml_t e) {
+      xml_element_set_content(x, e->content);
       for (xml_attribute_t a = e->first_attribute; a; a = a->next)
          xml_attribute_set(x, a->name, a->content);
       for (xml_t c = e->first_child; c; c = c->next)
