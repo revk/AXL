@@ -147,6 +147,7 @@ xml_attribute_t xml_attribute_set_ns(xml_t e, xml_namespace_t namespace, const c
 void xml_attribute_delete(xml_attribute_t a);
 void xml_pi_delete(xml_pi_t p);
 xml_t xml_element_delete(xml_t e);
+xml_t xml_element_duplicate(xml_t e);
 void xml_element_explode(xml_t e);
 void xml_element_set_name(xml_t e, const char *name);
 void xml_element_set_namespace(xml_t e, xml_namespace_t ns);
