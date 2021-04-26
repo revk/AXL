@@ -84,7 +84,7 @@ const char BASE16[] = "0123456789ABCDEF";
 #endif
 
 #ifndef	strndupa
-#define	strndupa(s,n)	strcpy(alloca((strlen(s)>n?n:strlen(s))+1),s)
+#define	strndupa(s,n)	strcpy(alloca((strlen(s)>((size_t)(n))?((size_t)(n)):strlen(s))+1),s)
 #endif
 
 const char empty[1] = "";
@@ -3606,7 +3606,7 @@ void xml_log(int debug, const char *who, const char *what, xml_t tx, xml_t rx)
    struct timezone tz;
    gettimeofday(&tv, &tz);
    p += strftime(path, sizeof(path) - 1, "/var/log/xml/%Y/%m/%d/%H%M%S", gmtime(&tv.tv_sec));
-   p += snprintf(p, path + sizeof(path) - p, "%06lu-%s-%s", tv.tv_usec, norm(strdupa(who ? : "-")), norm(strdupa(what ? : "-")));
+   p += snprintf(p, path + sizeof(path) - p, "%06lu-%s-%s", (long)tv.tv_usec, norm(strdupa(who ? : "-")), norm(strdupa(what ? : "-")));
    for (q = path + 12; q; q = strchr(q + 1, '/'))
    {
       *q = 0;
