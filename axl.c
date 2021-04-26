@@ -83,6 +83,10 @@ const char BASE16[] = "0123456789ABCDEF";
 #define	strdupa(s)	strcpy(alloca(strlen(s)+1),s)
 #endif
 
+#ifndef	strndupa
+#define	strndupa(s,n)	strcpy(alloca((strlen(s)>n?n:strlen(s))+1),s)
+#endif
+
 const char empty[1] = "";
 
 static struct xml_namespace_s nullns = { 0 };
