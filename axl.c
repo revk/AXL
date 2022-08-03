@@ -1755,7 +1755,7 @@ void xml_element_write_json(FILE * fp, xml_t e)
             fprintf(fp, "\\t");
          else if (c == '\b')
             fprintf(fp, "\\b");
-         else if (c == '\\' || c == '"')
+         else if (c == '\\' || c == '"' || c == '/')    // Note / is technically an optional escape, but used here because of danger of </script>
             fprintf(fp, "\\%c", (char) c);
          else if (c < ' ')
             fprintf(fp, "\\u%04X", c);
@@ -3606,7 +3606,7 @@ void xml_log(int debug, const char *who, const char *what, xml_t tx, xml_t rx)
    struct timezone tz;
    gettimeofday(&tv, &tz);
    p += strftime(path, sizeof(path) - 1, "/var/log/xml/%Y/%m/%d/%H%M%S", gmtime(&tv.tv_sec));
-   p += snprintf(p, path + sizeof(path) - p, "%06lu-%s-%s", (long)tv.tv_usec, norm(strdupa(who ? : "-")), norm(strdupa(what ? : "-")));
+   p += snprintf(p, path + sizeof(path) - p, "%06lu-%s-%s", (long) tv.tv_usec, norm(strdupa(who ? : "-")), norm(strdupa(what ? : "-")));
    for (q = path + 12; q; q = strchr(q + 1, '/'))
    {
       *q = 0;
