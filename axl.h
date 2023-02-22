@@ -233,6 +233,7 @@ size_t xml_based(const char *src, unsigned char **buf, const char *alphabet, uns
 // Object .. means up a level
 // Returns final element
 xml_t xml_add(xml_t, const char *path, const char *value);
+xml_t xml_add_free(xml_t, const char *path, char *value); // Frees value
 xml_t xml_addf(xml_t e, const char *path, const char *fmt, ...);
 // Similar generic path based functions
 xml_t xml_find(xml_t e, const char *path);      // return an element using a path

@@ -3006,6 +3006,13 @@ xml_t xml_add(xml_t e, const char *path, const char *value)
    return e;
 }
 
+xml_t xml_add_free(xml_t e, const char *path, char *value)
+{
+	xml_t x=xml_add(e,path,value);
+	free(value);
+	return x;
+}
+
 xml_t xml_addf(xml_t e, const char *path, const char *fmt, ...)
 {
    char *value = NULL;
