@@ -2553,13 +2553,35 @@ xml_tree_read_f (FILE * i, const char *file)
    //fputc (0, o); // open_memstream maintains a null so this is not needed
    fclose (o);
    if (!len)
-   { // Empty file, silently ignore
+   {                            // Empty file, silently ignore
       free (xml);
       return NULL;
    }
    void er (const char *filename, int line, int character, const char *error, const unsigned char *posn)
    {
-      warnx ("XML parse error in %s line %d:%d (%s) at (%.10s...)", filename ? : "stdin", line, character, error, (char*)posn ? : "");
+      fprintf (stderr, "XML parse error in %s line %d:%d (%s)", filename ? : "stdin", line, character, error);
+      if (posn)
+      {
+         fprintf (stderr, " at: ");
+         if (character > 11)
+         {
+            character = 11;
+            fprintf (stderr, "…");
+         }
+	 if(character)character--;
+         if (character)
+            fprintf (stderr, "%.*s", character, posn - character);
+         fprintf (stderr, "◆");
+         int c = 0;
+         while (posn[c] >= ' ')
+            c++;
+         if (c > 10)
+            c = 10;
+         fprintf (stderr, "%.*s", c, posn);
+         if (posn[c] >= ' ')
+            fprintf (stderr, "…");
+      }
+      fprintf (stderr, "\n");
    }
    xml_t e = xml_parse (file, (const unsigned char *) xml, &er);
    free (xml);
