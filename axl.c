@@ -533,7 +533,7 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
    {
       if (er)
          return 0;
-      int parse_attribute (xml_t e)
+      int parse_attribute (xml_t e, int live)
       {
          if (er)
             return 0;
@@ -599,15 +599,15 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
             {                   // prefix
                if (name - atag == 6 && !memcmp (atag, "xmlns", 5))
                {
-                  ns_stack (namel, name, contentl, content);    // Define namespace
+                  if (!live)
+                     ns_stack (namel, name, contentl, content); // Define namespace
                   name = NULL;
-               } else if (!(ns = ns_find (name - atag - 1, atag)))
+               } else if (live && !(ns = ns_find (name - atag - 1, atag)))
                   er = "Unknown namespace";
             }
-            if (name)
+            if (name && live)
                xml_attribute_set_ns_l (e, ns, namel, (const char *) name, contentl, (const char *) content);
-            if (content)
-               free (content);
+            free (content);
             return 1;
          }
          if (content)
@@ -649,7 +649,12 @@ xml_parse (const char *filename, const unsigned char *xml, xml_error_func * fail
          er = "Something wrong";
          return 0;
       }
-      while (parse_attribute (n));
+      {                         // 1 is get name spaces, 2 is process.
+         const unsigned char *back = p;
+         while (parse_attribute (n, 0));        // This gets all the name spaces that apply
+         p = back;
+         while (parse_attribute (n, 1));        // This actually gets the attributes
+      }
       if (er)
          return 0;
       // Work out element namespace
@@ -2563,29 +2568,26 @@ xml_tree_read_f (FILE * i, const char *file)
       if (posn)
       {
          fprintf (stderr, " at: ");
-         if (character > 51)
+         if (character > 101)
          {
-            character = 51;
+            character = 101;
             fprintf (stderr, "…");
          }
-	 if(character)character--;
+         if (character)
+            character--;
          if (character)
             fprintf (stderr, "%.*s", character, posn - character);
          fprintf (stderr, "◆");
          int c = 0;
          while (posn[c] >= ' ')
             c++;
-         if (c > 50)
-            c = 50;
+         if (c > 100)
+            c = 100;
          fprintf (stderr, "%.*s", c, posn);
          if (posn[c] >= ' ')
             fprintf (stderr, "…");
       }
       fprintf (stderr, "\n");
-#if 1
-      if(posn)
-	      fprintf(stderr,"Source:\n%.*s◆%s\n",(int)((char*)posn-xml),xml,(char*)posn); // Dump whole source for context
-#endif
    }
    xml_t e = xml_parse (file, (const unsigned char *) xml, &er);
    free (xml);
