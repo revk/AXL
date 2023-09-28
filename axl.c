@@ -2563,9 +2563,9 @@ xml_tree_read_f (FILE * i, const char *file)
       if (posn)
       {
          fprintf (stderr, " at: ");
-         if (character > 11)
+         if (character > 51)
          {
-            character = 11;
+            character = 51;
             fprintf (stderr, "…");
          }
 	 if(character)character--;
@@ -2575,8 +2575,8 @@ xml_tree_read_f (FILE * i, const char *file)
          int c = 0;
          while (posn[c] >= ' ')
             c++;
-         if (c > 10)
-            c = 10;
+         if (c > 50)
+            c = 50;
          fprintf (stderr, "%.*s", c, posn);
          if (posn[c] >= ' ')
             fprintf (stderr, "…");
