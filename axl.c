@@ -2582,6 +2582,10 @@ xml_tree_read_f (FILE * i, const char *file)
             fprintf (stderr, "…");
       }
       fprintf (stderr, "\n");
+#if 1
+      if(posn)
+	      fprintf(stderr,"Source:\n%.*s◆%s\n",(int)((char*)posn-xml),xml,(char*)posn); // Dump whole source for context
+#endif
    }
    xml_t e = xml_parse (file, (const unsigned char *) xml, &er);
    free (xml);
